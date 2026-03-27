@@ -1,0 +1,151 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: k8s-program
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: standard
+
+---
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: songs-db
+  namespace: k8s-program
+spec:
+  serviceName: "postgres"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: songs-db-pod
+  template:
+    metadata:
+      labels:
+        app: songs-db-pod
+    spec:
+      containers:
+        - name: songs-postgres
+          image: postgres
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: SONGS_DB_PASSWORD
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: SONGS_DB_USER
+          volumeMounts:
+            - name: postgres-volume
+              mountPath: /var/lib/postgresql
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-volume
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi
+
+---
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: resources-db
+  namespace: k8s-program
+spec:
+  serviceName: "postgres"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: resources-db-pod
+  template:
+    metadata:
+      labels:
+        app: resources-db-pod
+    spec:
+      containers:
+        - name: resources-postgres
+          image: postgres
+          ports:
+            - containerPort: 5433
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: RESOURCES_DB_PASSWORD
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: RESOURCES_DB_USER
+            - name: PGPORT
+              value: "5433"
+          volumeMounts:
+            - name: postgres-volume
+              mountPath: /var/lib/postgresql
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-volume
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: songs-db-service
+  namespace: k8s-program
+spec:
+  selector:
+    app: songs-db-pod
+  clusterIP: None
+  ports:
+    - port: 5432
+      name: songs-db
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: resources-db-service
+  namespace: k8s-program
+spec:
+  selector:
+    app: resources-db-pod
+  clusterIP: None
+  ports:
+    - port: 5433
+      name: resources-db
+
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+  namespace: k8s-program
+type: Opaque
+stringData:
+  SONGS_DB_USER: postgres
+  SONGS_DB_PASSWORD: postgres
+  RESOURCES_DB_USER: postgres
+  RESOURCES_DB_PASSWORD: postgres
+  
