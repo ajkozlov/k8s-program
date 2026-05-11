@@ -1,0 +1,56 @@
+namespace: k8s-program
+
+resourcesService:
+  image:
+    repository: localhost/k8s/resources-image
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicas: 2
+  port: 8080
+  nodePort: 8083
+
+songsService:
+  image:
+    repository: localhost/k8s/songs-image
+    tag: "2.0"
+    pullPolicy: IfNotPresent
+  replicas: 2
+  port: 8080
+  nodePort: 8084
+  pvc:
+    claimName: songs-pvc
+    mountPath: /usr/share/nginx/html
+
+resourcesDb:
+  image: postgres
+  port: 5433
+  storage: 5Gi
+
+songsDb:
+  image: postgres
+  port: 5432
+  storage: 5Gi
+
+# Used in Secret (postgres-secret). In production pass via --set, do not commit real passwords.
+postgres:
+  songsDbUser: postgres
+  songsDbPassword: postgres
+  resourcesDbUser: postgres
+  resourcesDbPassword: postgres
+
+config:
+  songsDbPort: "5432"
+  resourcesDbPort: "5433"
+  songsMsPort: "8080"
+  resourcesMsPort: "8080"
+
+songsPv:
+  name: songs-pv
+  storage: 3Gi
+  storageClassName: manual
+  hostPath: /mnt/data
+
+songsPvc:
+  name: songs-pvc
+  storage: 3Gi
+  storageClassName: manual

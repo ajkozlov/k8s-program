@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: resource-deployment
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "microservices.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.resourcesService.replicas }}
+  selector:
+    matchLabels:
+      app: resources-app-pod
+  template:
+    metadata:
+      labels:
+        app: resources-app-pod
+    spec:
+      containers:
+        - name: resources-container
+          image: "{{ .Values.resourcesService.image.repository }}:{{ .Values.resourcesService.image.tag }}"
+          imagePullPolicy: {{ .Values.resourcesService.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.resourcesService.port }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.resourcesService.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 5
+          env:
+            - name: RESOURCES_MS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: configs
+                  key: resources-ms-port
+            - name: RESOURCES_DB_URL
+              value: resources-db-service
+            - name: RESOURCES_DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: configs
+                  key: resources-db-port
+            # SongServiceClient reads ${songs.url} and ${songs.port} — missing from the raw manifest
+            - name: SONGS_MS_URL
+              value: song-service
+            - name: SONGS_MS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: configs
+                  key: songs-ms-port
