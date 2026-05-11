@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: songs-deployment
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "microservices.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.songsService.replicas }}
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: songs-app-pod
+  template:
+    metadata:
+      labels:
+        app: songs-app-pod
+    spec:
+      volumes:
+        - name: songs-pv-storage
+          persistentVolumeClaim:
+            claimName: {{ .Values.songsService.pvc.claimName }}
+      containers:
+        - name: songs-container
+          image: "{{ .Values.songsService.image.repository }}:{{ .Values.songsService.image.tag }}"
+          imagePullPolicy: {{ .Values.songsService.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.songsService.port }}
+          volumeMounts:
+            - mountPath: {{ .Values.songsService.pvc.mountPath | quote }}
+              name: songs-pv-storage
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.songsService.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 5
+          env:
+            - name: SONGS_MS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: configs
+                  key: songs-ms-port
+            - name: SONGS_DB_URL
+              value: songs-db-service
+            - name: SONGS_DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: configs
+                  key: songs-db-port

@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: songs-db
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "microservices.labels" . | nindent 4 }}
+spec:
+  serviceName: "songs-db-service"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: songs-db-pod
+  template:
+    metadata:
+      labels:
+        app: songs-db-pod
+    spec:
+      containers:
+        - name: songs-postgres
+          image: {{ .Values.songsDb.image }}
+          ports:
+            - containerPort: {{ .Values.songsDb.port }}
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: SONGS_DB_PASSWORD
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: SONGS_DB_USER
+          volumeMounts:
+            - name: postgres-volume
+              mountPath: /var/lib/postgresql
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-volume
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: {{ .Values.songsDb.storage }}

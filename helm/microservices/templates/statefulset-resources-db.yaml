@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: resources-db
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "microservices.labels" . | nindent 4 }}
+spec:
+  serviceName: "resources-db-service"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: resources-db-pod
+  template:
+    metadata:
+      labels:
+        app: resources-db-pod
+    spec:
+      containers:
+        - name: resources-postgres
+          image: {{ .Values.resourcesDb.image }}
+          ports:
+            - containerPort: {{ .Values.resourcesDb.port }}
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: RESOURCES_DB_PASSWORD
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: RESOURCES_DB_USER
+            - name: PGPORT
+              value: {{ .Values.resourcesDb.port | quote }}
+          volumeMounts:
+            - name: postgres-volume
+              mountPath: /var/lib/postgresql
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-volume
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: {{ .Values.resourcesDb.storage }}
